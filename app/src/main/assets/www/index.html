@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'none'">
+  <meta name="color-scheme" content="dark light">
+  <title>C01N</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Skeleton: tampil hanya selama data benar-benar sedang dimuat -->
+  <div id="boot" class="boot" aria-busy="true" aria-label="Memuat data">
+    <div class="sk sk-line w40"></div>
+    <div class="sk sk-card tall"></div>
+    <div class="sk-row"><div class="sk sk-card"></div><div class="sk sk-card"></div></div>
+    <div class="sk sk-chart"></div>
+    <div class="sk sk-line w60"></div>
+    <div class="sk sk-item"></div><div class="sk sk-item"></div><div class="sk sk-item"></div>
+  </div>
+  <div id="bootError" class="boot-error" hidden></div>
+
+  <div id="shell" hidden>
+    <main id="tabs">
+      <section class="page" id="page-home" data-tab="home"></section>
+      <section class="page" id="page-expense" data-tab="expense" hidden></section>
+      <section class="page" id="page-budget" data-tab="budget" hidden></section>
+      <section class="page" id="page-goals" data-tab="goals" hidden></section>
+      <section class="page" id="page-profile" data-tab="profile" hidden></section>
+    </main>
+    <nav id="nav" class="bottom-nav" aria-label="Navigasi utama"></nav>
+  </div>
+
+  <div id="stack"></div>
+  <div id="overlay"></div>
+  <div id="snackbar" class="snackbar" role="status" aria-live="polite"></div>
+  <input id="restoreFile" type="file" hidden>
+  <input id="photoFile" type="file" accept="image/*" hidden>
+</div>
+<script src="js/core.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ui-kit.js"></script>
+<script src="js/security.js"></script>
+<script src="js/pages.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
