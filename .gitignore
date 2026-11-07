@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+# Kunci rilis TIDAK boleh masuk repository
+*.jks
+*.keystore
+*.p12
+node_modules/
