@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.C01N" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/c01n_ink</item>
+        <item name="android:statusBarColor">@color/c01n_ink</item>
+        <item name="android:navigationBarColor">@color/c01n_ink</item>
+    </style>
+</resources>
