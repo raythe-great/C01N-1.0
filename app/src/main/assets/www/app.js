@@ -8,10 +8,27 @@
   function showError(message) {
     $('#boot').hidden = true; $('#shell').hidden = true;
     const e = $('#bootError'); e.hidden = false;
-    e.innerHTML = icon('warn') + '<h2>Data tidak dapat dibuka</h2><p>' + esc(message) + '</p><button class="btn primary" id="btnRetry">Coba lagi</button><button class="btn danger" id="btnReset">Mulai ulang</button>';
+    e.innerHTML = icon('warn') + '<h2>Data tidak dapat dibuka</h2><p>' + esc(message) + '</p><button type="button" class="btn primary" id="btnRetry">Coba lagi</button><button type="button" class="btn danger" id="btnReset">Hapus data demo & mulai ulang</button><p class="muted" id="resetStatus" role="status"></p>';
     $('#btnRetry').onclick = () => start();
     $('#btnReset').onclick = async () => {
-      if (await U.confirmBox('Mulai ulang?', 'Data terenkripsi yang tidak terbaca akan dihapus. Setelah itu Anda dapat memulihkan dari file backup.', 'Hapus dan mulai ulang', true)) { Native.wipeAll(); start(); }
+      const button = $('#btnReset'), status = $('#resetStatus');
+      if (button.disabled) return;
+      button.disabled = true;
+      status.textContent = 'Menghapus data…';
+      try {
+        // Pengguna memilih reset: hapus data terenkripsi dan sisa penyimpanan web/legacy.
+        const wiped = Native.wipeAll();
+        if (wiped === false) throw new Error('Penyimpanan tidak dapat dihapus. Tutup aplikasi lalu coba lagi.');
+        try { localStorage.removeItem('c01n_v3_web'); localStorage.removeItem('c01n_transactions_v2'); localStorage.removeItem('c01n_settings_v1'); } catch (_) {}
+        Store.clear();
+        status.textContent = 'Data demo terhapus. Menyiapkan C01N…';
+        // Mulai ulang setelah handler saat ini selesai agar status boot konsisten.
+        setTimeout(() => start(), 0);
+      } catch (err) {
+        console.error('C01N reset failed:', err);
+        status.textContent = 'Gagal menghapus data: ' + (err && err.message ? err.message : String(err));
+        button.disabled = false;
+      }
     };
   }
 
