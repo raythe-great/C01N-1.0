@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Logo: koin emas kuno -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:strokeColor="#D9A441" android:strokeWidth="5" android:fillColor="#00000000"
-        android:pathData="M54,54m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
-    <path android:strokeColor="#D9A441" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000"
-        android:pathData="M62,45.5 A12.5,12.5 0 1 0 62,62.5" />
+    <path android:fillColor="#B9801F"
+        android:pathData="M54,54m-31,0a31,31 0,1 1,62 0a31,31 0,1 1,-62 0" />
+    <path android:fillColor="#E9B94B"
+        android:pathData="M54,54m-28.5,0a28.5,28.5 0,1 1,57 0a28.5,28.5 0,1 1,-57 0" />
+    <path android:strokeColor="#A8741A" android:strokeWidth="1.8" android:fillColor="#00000000"
+        android:pathData="M54,54m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0" />
+    <path android:strokeColor="#B9801F" android:strokeWidth="2" android:fillColor="#00000000"
+        android:pathData="M54,54m-17.5,0a17.5,17.5 0,1 1,35 0a17.5,17.5 0,1 1,-35 0" />
+    <path android:fillColor="#B9801F"
+        android:pathData="M54,41 L58.5,49.5 L67,54 L58.5,58.5 L54,67 L49.5,58.5 L41,54 L49.5,49.5 Z" />
+    <path android:strokeColor="#FFF1BF" android:strokeAlpha="0.85" android:strokeWidth="3" android:strokeLineCap="round" android:fillColor="#00000000"
+        android:pathData="M33,46 A22,22 0 0 1 46,33" />
 </vector>
