@@ -298,4 +298,209 @@
   function renameWallet(state, id, name, type) {
     const nm = cleanText(name, 30); if (!nm) throw new Error('Nama dompet wajib diisi.');
     if (state.wallets.some(w => w.id !== id && !w.archived && w.name.toLowerCase() === nm.toLowerCase())) throw new Error('Nama dompet sudah dipakai.');
-    return Object.assign({}, state, { wallets: state.wallets.map(w => w.id === id ? O
+    return Object.assign({}, state, { wallets: state.wallets.map(w => w.id === id ? Object.assign({}, w, { name: nm, type: WALLET_TYPES[type] ? type : w.type }) : w) });
+  }
+  function removeWallet(state, id) { // hapus bila kosong, arsipkan bila punya riwayat
+    const w = state.wallets.find(x => x.id === id); if (!w) throw new Error('Dompet tidak ditemukan.');
+    if (state.wallets.filter(x => !x.archived).length <= 1 && !w.archived) throw new Error('Minimal harus ada satu dompet aktif.');
+    const used = state.transactions.some(t => t.walletId === id || t.toWalletId === id) || state.recurring.some(r => r.walletId === id);
+    if (!used) return { state: Object.assign({}, state, { wallets: state.wallets.filter(x => x.id !== id) }), archived: false };
+    return { state: Object.assign({}, state, { wallets: state.wallets.map(x => x.id === id ? Object.assign({}, x, { archived: true }) : x), recurring: state.recurring.map(r => r.walletId === id ? Object.assign({}, r, { active: false }) : r) }), archived: true };
+  }
+  function addCategory(state, name, type) {
+    const nm = cleanText(name, 24); if (!nm) throw new Error('Nama kategori wajib diisi.');
+    if (!['income', 'expense'].includes(type)) throw new Error('Jenis kategori tidak valid.');
+    if (state.categories.some(c => c.type === type && c.name.toLowerCase() === nm.toLowerCase())) throw new Error('Kategori sudah ada.');
+    return Object.assign({}, state, { categories: state.categories.concat([{ id: 'cu-' + uid(), name: nm, type, builtin: false }]) });
+  }
+  function removeCategory(state, id) { // transaksi dipindah ke "Lainnya"
+    const c = state.categories.find(x => x.id === id); if (!c) throw new Error('Kategori tidak ditemukan.');
+    if (c.builtin) throw new Error('Kategori bawaan tidak bisa dihapus.');
+    const fb = state.categories.find(x => x.type === c.type && x.name === 'Lainnya');
+    return Object.assign({}, state, {
+      categories: state.categories.filter(x => x.id !== id),
+      transactions: state.transactions.map(t => t.categoryId === id ? Object.assign({}, t, { categoryId: fb.id }) : t),
+      recurring: state.recurring.map(r => r.categoryId === id ? Object.assign({}, r, { categoryId: fb.id }) : r),
+      budgets: state.budgets.filter(b => b.categoryId !== id)
+    });
+  }
+
+  /* ---------- anggaran ---------- */
+  function budgetLevel(spent, limit) { if (!limit) return 'none'; if (spent > limit) return 'over'; if (spent * 100 >= limit * 80) return 'warn'; return 'ok'; }
+  function budgetStatus(state, ref) {
+    const txs = inRange(state.transactions, periodRange('month', ref)).filter(t => t.type === 'expense');
+    const spentAll = txs.reduce((s, t) => s + t.amount, 0), by = {};
+    txs.forEach(t => { by[t.categoryId] = (by[t.categoryId] || 0) + t.amount; });
+    const mk = (b, spent) => ({ id: b.id, categoryId: b.categoryId, limit: b.limit, spent, remaining: b.limit - spent, pct: Math.round(spent / b.limit * 100), level: budgetLevel(spent, b.limit) });
+    const tb = state.budgets.find(b => b.categoryId === null);
+    return { total: tb ? mk(tb, spentAll) : null, spentAll, categories: state.budgets.filter(b => b.categoryId !== null).map(b => mk(b, by[b.categoryId] || 0)) };
+  }
+  function setBudget(state, categoryId, limit) {
+    const rest = state.budgets.filter(b => b.categoryId !== categoryId);
+    if (!limit) return Object.assign({}, state, { budgets: rest });
+    if (!isInt(limit) || limit <= 0) throw new Error('Batas anggaran tidak valid.');
+    if (categoryId !== null && !state.categories.some(c => c.id === categoryId && c.type === 'expense')) throw new Error('Kategori tidak valid.');
+    return Object.assign({}, state, { budgets: rest.concat([{ id: uid(), categoryId, limit }]) });
+  }
+  /* peringatan yang layak ditampilkan setelah transaksi pengeluaran */
+  function budgetAlerts(before, after) {
+    const out = [];
+    if (before.total && after.total && before.total.level !== after.total.level && ['warn', 'over'].includes(after.total.level)) out.push({ scope: 'total', level: after.total.level });
+    after.categories.forEach(c => { const b = before.categories.find(x => x.id === c.id); if (b && b.level !== c.level && ['warn', 'over'].includes(c.level)) out.push({ scope: c.categoryId, level: c.level }); });
+    return out;
+  }
+
+  /* ---------- tabungan ---------- */
+  function goalPct(g) { return Math.min(100, Math.floor(g.saved / g.target * 100)); }
+  function goalAdjust(g, delta, ts, note) {
+    if (!isInt(delta) || delta === 0) throw new Error('Nominal tidak valid.');
+    if (g.saved + delta < 0) throw new Error('Dana yang dikurangi melebihi dana tabungan.');
+    return Object.assign({}, g, { saved: g.saved + delta, history: g.history.concat([{ id: uid(), ts, delta, note: cleanText(note, 60) }]) });
+  }
+  function goalMonthlyNeed(g, now) {
+    if (!g.deadline || g.saved >= g.target) return 0;
+    const a = new Date(now), b = new Date(g.deadline);
+    const months = Math.max(1, (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth());
+    return Math.ceil((g.target - g.saved) / months);
+  }
+
+  /* ---------- transaksi berulang ---------- */
+  function addInterval(ts, freq, anchorDay) {
+    const d = new Date(ts), y = d.getFullYear(), m = d.getMonth(), h = d.getHours(), mi = d.getMinutes();
+    if (freq === 'daily') { d.setDate(d.getDate() + 1); return d.getTime(); }
+    if (freq === 'weekly') { d.setDate(d.getDate() + 7); return d.getTime(); }
+    if (freq === 'monthly') return new Date(y, m + 1, Math.min(anchorDay, daysInMonth(y, m + 1)), h, mi).getTime();
+    return new Date(y + 1, m, Math.min(anchorDay, daysInMonth(y + 1, m)), h, mi).getTime();
+  }
+  function applyRecurring(state, now) {
+    let created = 0; const txs = state.transactions.slice(), ids = new Set(txs.map(t => t.id));
+    const rules = state.recurring.map(r => {
+      if (!r.active) return r;
+      let next = r.nextTs, guard = 0, active = true;
+      while (next <= now && guard++ < 400) {
+        if (r.endTs && next > r.endTs) { active = false; break; }
+        const id = 'r-' + r.id + '-' + next;
+        if (!ids.has(id)) {
+          const tx = normalizeTx({ id, type: r.type, amount: r.amount, ts: next, walletId: r.walletId, categoryId: r.categoryId, title: r.title, note: r.note, method: r.method, recurringId: r.id }, state);
+          if (tx) { txs.push(tx); ids.add(id); created++; }
+        }
+        next = addInterval(next, r.freq, r.anchorDay);
+      }
+      if (r.endTs && next > r.endTs) active = false;
+      return Object.assign({}, r, { nextTs: next, active });
+    });
+    return { state: created || rules.some((r, i) => r.nextTs !== state.recurring[i].nextTs || r.active !== state.recurring[i].active) ? Object.assign({}, state, { transactions: txs, recurring: rules }) : state, created };
+  }
+  function addRecurring(state, r) {
+    const amount = r.amount, title = cleanText(r.title, 60);
+    if (!title) throw new Error('Deskripsi wajib diisi.');
+    if (!isInt(amount) || amount <= 0) throw new Error('Nominal tidak valid.');
+    if (!['daily', 'weekly', 'monthly', 'yearly'].includes(r.freq)) throw new Error('Frekuensi tidak valid.');
+    if (!state.wallets.some(w => w.id === r.walletId && !w.archived)) throw new Error('Dompet tidak valid.');
+    if (!state.categories.some(c => c.id === r.categoryId && c.type === r.type)) throw new Error('Pilih kategori.');
+    if (!Number.isFinite(r.startTs)) throw new Error('Tanggal mulai tidak valid.');
+    const rule = { id: uid(), title, type: r.type, amount, walletId: r.walletId, categoryId: r.categoryId, method: cleanText(r.method, 24), note: cleanText(r.note, 160), freq: r.freq, anchorDay: new Date(r.startTs).getDate(), nextTs: r.startTs, endTs: r.endTs || null, active: true };
+    return Object.assign({}, state, { recurring: state.recurring.concat([rule]) });
+  }
+
+  /* ---------- tagihan ---------- */
+  function billDueDate(bill, ref) { const d = new Date(ref); return new Date(d.getFullYear(), d.getMonth(), Math.min(bill.dueDay, daysInMonth(d.getFullYear(), d.getMonth()))).getTime(); }
+  function billStatus(bill, now) {
+    const key = monthKey(now);
+    if (bill.paid && bill.paid[key]) return { status: 'paid', days: 0 };
+    const due = billDueDate(bill, now), today = periodRange('day', now)[0];
+    const days = Math.round((due - today) / 86400000);
+    return { status: days < 0 ? 'overdue' : days <= bill.remindDays ? 'soon' : 'upcoming', days };
+  }
+  function addBill(state, b) {
+    const name = cleanText(b.name, 40); if (!name) throw new Error('Nama tagihan wajib diisi.');
+    if (!isInt(b.amount) || b.amount <= 0) throw new Error('Nominal tidak valid.');
+    return Object.assign({}, state, { bills: state.bills.concat([{ id: uid(), name, amount: b.amount, dueDay: Math.min(31, Math.max(1, Number(b.dueDay) || 1)), remindDays: Math.min(14, Math.max(0, Number(b.remindDays) || 3)), paid: {} }]) });
+  }
+  function markBillPaid(state, id, now, walletId) {
+    const bill = state.bills.find(b => b.id === id); if (!bill) throw new Error('Tagihan tidak ditemukan.');
+    const key = monthKey(now); let next = state;
+    if (walletId) {
+      const cat = state.categories.find(c => c.type === 'expense' && c.name === 'Tagihan');
+      next = addTransaction(next, { type: 'expense', amount: bill.amount, ts: now, walletId, categoryId: cat.id, title: bill.name, method: '' }).state;
+    }
+    return Object.assign({}, next, { bills: next.bills.map(b => b.id === id ? Object.assign({}, b, { paid: Object.assign({}, b.paid, { [key]: now }) }) : b) });
+  }
+
+  /* ---------- laporan ---------- */
+  function monthlyReport(state, ref) {
+    const cur = inRange(state.transactions, periodRange('month', ref)), prev = inRange(state.transactions, periodRange('month', shiftPeriod('month', ref, -1)));
+    const a = sumByType(cur), b = sumByType(prev), d = new Date(ref);
+    const today = new Date(), sameMonth = today.getFullYear() === d.getFullYear() && today.getMonth() === d.getMonth();
+    const elapsed = sameMonth ? today.getDate() : daysInMonth(d.getFullYear(), d.getMonth());
+    return {
+      income: a.income, expense: a.expense, net: a.income - a.expense, prevIncome: b.income, prevExpense: b.expense,
+      expenseChangePct: b.expense ? Math.round((a.expense - b.expense) / b.expense * 100) : null,
+      byExpense: groupByCategory(state, cur, 'expense'), byIncome: groupByCategory(state, cur, 'income'),
+      count: cur.length, dailyAvgExpense: Math.round(a.expense / Math.max(1, elapsed))
+    };
+  }
+  function yearlyReport(state, year) {
+    const months = [];
+    for (let m = 0; m < 12; m++) { const t = sumByType(inRange(state.transactions, [new Date(year, m, 1).getTime(), new Date(year, m + 1, 1).getTime()])); months.push({ month: m, income: t.income, expense: t.expense }); }
+    const income = months.reduce((s, x) => s + x.income, 0), expense = months.reduce((s, x) => s + x.expense, 0);
+    const yr = inRange(state.transactions, [new Date(year, 0, 1).getTime(), new Date(year + 1, 0, 1).getTime()]);
+    return { months, income, expense, net: income - expense, byExpense: groupByCategory(state, yr, 'expense') };
+  }
+  /* deret batang untuk halaman pengeluaran/pemasukan: minggu = 7 hari, bulan = tiap tanggal, tahun = 12 bulan */
+  function bucketSeries(state, kind, ref) {
+    const out = [], txs = state.transactions;
+    const mk = (label, s, e) => { const t = sumByType(inRange(txs, [s, e])); out.push({ label, ts: s, income: t.income, expense: t.expense }); };
+    const d = new Date(ref);
+    if (kind === 'week') { const s = periodRange('week', ref)[0]; for (let i = 0; i < 7; i++) { const a = new Date(s); a.setDate(a.getDate() + i); const b = new Date(a); b.setDate(b.getDate() + 1); mk(DAYS_SHORT[a.getDay()], a.getTime(), b.getTime()); } }
+    else if (kind === 'month') { const n = daysInMonth(d.getFullYear(), d.getMonth()); for (let i = 1; i <= n; i++) mk(String(i), new Date(d.getFullYear(), d.getMonth(), i).getTime(), new Date(d.getFullYear(), d.getMonth(), i + 1).getTime()); }
+    else if (kind === 'year') { for (let m = 0; m < 12; m++) mk(MONTHS_SHORT[m], new Date(d.getFullYear(), m, 1).getTime(), new Date(d.getFullYear(), m + 1, 1).getTime()); }
+    return out;
+  }
+  function periodCompare(state, kind, ref) {
+    const cur = sumByType(inRange(state.transactions, periodRange(kind, ref))), prev = sumByType(inRange(state.transactions, periodRange(kind, shiftPeriod(kind, ref, -1))));
+    return { cur, prev, expenseDelta: cur.expense - prev.expense, expensePct: prev.expense ? Math.round((cur.expense - prev.expense) / prev.expense * 100) : null, incomeDelta: cur.income - prev.income };
+  }
+
+  /* ---------- CSV ---------- */
+  function csvCell(v) {
+    let s = String(v == null ? '' : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // cegah formula injection di spreadsheet
+    return /[",\n\r;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function toCSV(state, txs) {
+    const cur = state.settings.currency, wn = id => (state.wallets.find(w => w.id === id) || {}).name || '';
+    const rows = [['Tanggal', 'Waktu', 'Jenis', 'Kategori', 'Deskripsi', 'Nominal', 'Mata uang', 'Dompet', 'Dompet tujuan', 'Metode', 'Catatan']];
+    txs.slice().sort((a, b) => a.ts - b.ts).forEach(t => rows.push([dateInputValue(t.ts), formatTime(t.ts), t.type === 'income' ? 'Pemasukan' : t.type === 'expense' ? 'Pengeluaran' : 'Transfer', t.type === 'transfer' ? '' : categoryName(state, t.categoryId), t.title, plainAmount(t.amount, cur), cur, wn(t.walletId), wn(t.toWalletId), t.method, t.note]));
+    return rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  }
+
+  /* ---------- backup (isi sebelum dienkripsi) ---------- */
+  function backupPayload(state) { return JSON.stringify({ app: 'C01N', format: 'c01n-data', version: 3, exportedAt: new Date().toISOString(), state }); }
+  function parseBackup(text, now) { // menerima backup v3 dan backup lama 0.4 (JSON polos)
+    let data; try { data = JSON.parse(text); } catch (_) { throw new Error('File backup rusak atau bukan JSON.'); }
+    if (data && data.state && data.format === 'c01n-data') return normalizeState(data.state, now);
+    if (data && Array.isArray(data.transactions)) return fromLegacy(data.transactions, data.settings, now);
+    throw new Error('Format backup tidak dikenali.');
+  }
+  function mergeStates(base, incoming) { // gabung: ID yang sudah ada dilewati
+    const s = clone(base);
+    incoming.wallets.forEach(w => { if (!s.wallets.some(x => x.id === w.id)) s.wallets.push(w); });
+    incoming.categories.forEach(c => { if (!s.categories.some(x => x.id === c.id)) s.categories.push(c); });
+    const ids = new Set(s.transactions.map(t => t.id)); let added = 0;
+    incoming.transactions.forEach(t => { if (!ids.has(t.id)) { s.transactions.push(t); added++; } });
+    ['budgets', 'goals', 'recurring', 'bills'].forEach(k => incoming[k].forEach(x => { if (!s[k].some(y => y.id === x.id) && !(k === 'budgets' && s.budgets.some(y => y.categoryId === x.categoryId))) s[k].push(x); }));
+    return { state: normalizeState(s), added };
+  }
+
+  return {
+    CURRENCIES, MONTHS_SHORT, MONTHS_LONG, DAYS_SHORT, METHODS, WALLET_TYPES, DATE_FORMATS, MAX_AMOUNT,
+    uid, cleanText, formatMoney, parseAmount, amountToInput, plainAmount, formatDate, formatTime, dateInputValue, timeInputValue, parseDateTime, monthKey, daysInMonth,
+    periodRange, shiftPeriod, periodLabel, freshState, normalizeState, fromLegacy, defaultCategories,
+    walletBalance, totalBalance, sumByType, inRange, categoryName, groupByCategory, queryTransactions, dailyBars, dayTotals,
+    addTransaction, updateTransaction, deleteTransaction, addWallet, renameWallet, removeWallet, addCategory, removeCategory,
+    budgetLevel, budgetStatus, setBudget, budgetAlerts, goalPct, goalAdjust, goalMonthlyNeed,
+    addInterval, applyRecurring, addRecurring, billStatus, billDueDate, addBill, markBillPaid,
+    monthlyReport, yearlyReport, periodCompare, bucketSeries, toCSV, csvCell, backupPayload, parseBackup, mergeStates
+  };
+});
