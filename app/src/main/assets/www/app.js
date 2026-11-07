@@ -5,30 +5,15 @@
   const { $, esc, icon, toast } = U;
   let starting = false;
 
-  function showError(message) {
+  function showError(message, detail) {
     $('#boot').hidden = true; $('#shell').hidden = true;
     const e = $('#bootError'); e.hidden = false;
-    e.innerHTML = icon('warn') + '<h2>Data tidak dapat dibuka</h2><p>' + esc(message) + '</p><button type="button" class="btn primary" id="btnRetry">Coba lagi</button><button type="button" class="btn danger" id="btnReset">Hapus data demo & mulai ulang</button><p class="muted" id="resetStatus" role="status"></p>';
-    $('#btnRetry').onclick = () => start();
+    e.innerHTML = icon('warn') + '<h2>Data tidak dapat dibuka</h2><p>' + esc(message) + '</p>' +
+      (detail ? '<p class="muted" style="font-size:12px">Kode: ' + esc(detail) + '</p>' : '') +
+      '<button class="btn primary" id="btnRetry">Coba lagi</button><button class="btn danger" id="btnReset">Mulai ulang</button>';
+    $('#btnRetry').onclick = () => { toast('Mencoba lagi…'); start(); };
     $('#btnReset').onclick = async () => {
-      const button = $('#btnReset'), status = $('#resetStatus');
-      if (button.disabled) return;
-      button.disabled = true;
-      status.textContent = 'Menghapus data…';
-      try {
-        // Pengguna memilih reset: hapus data terenkripsi dan sisa penyimpanan web/legacy.
-        const wiped = Native.wipeAll();
-        if (wiped === false) throw new Error('Penyimpanan tidak dapat dihapus. Tutup aplikasi lalu coba lagi.');
-        try { localStorage.removeItem('c01n_v3_web'); localStorage.removeItem('c01n_transactions_v2'); localStorage.removeItem('c01n_settings_v1'); } catch (_) {}
-        Store.clear();
-        status.textContent = 'Data demo terhapus. Menyiapkan C01N…';
-        // Mulai ulang setelah handler saat ini selesai agar status boot konsisten.
-        setTimeout(() => start(), 0);
-      } catch (err) {
-        console.error('C01N reset failed:', err);
-        status.textContent = 'Gagal menghapus data: ' + (err && err.message ? err.message : String(err));
-        button.disabled = false;
-      }
+      if (await U.confirmBox('Mulai dari kosong?', 'Data tersimpan di perangkat ini akan dihapus dan aplikasi dimulai dari kosong. File backup tidak diperlukan; pulihkan hanya jika Anda memang punya.', 'Hapus dan mulai dari kosong', true)) { Native.wipeAll(); start(); }
     };
   }
 
@@ -76,7 +61,11 @@
       $('#boot').hidden = !!(st.pinEnabled && !st.unlocked);
       await Security.unlock();
       $('#boot').hidden = false;
-      try { Store.load(); } catch (err) { showError(err && err.message === 'unreadable' ? 'Data terenkripsi tidak bisa dibaca. Ini dapat terjadi bila pengaturan keamanan perangkat berubah. Coba lagi, atau mulai ulang lalu pulihkan dari backup.' : 'Terjadi kesalahan saat memuat data. Data Anda tidak diubah. Coba lagi.'); return; }
+      try { Store.load(); } catch (err) {
+        const code = err && err.message ? String(err.message).slice(0, 120) : 'unknown';
+        showError(code === 'unreadable' ? 'Data terenkripsi tidak bisa dibaca. Ini dapat terjadi bila pengaturan keamanan perangkat berubah. Coba lagi, atau mulai dari kosong.' : 'Terjadi kesalahan saat memuat data. Data Anda tidak diubah. Coba lagi.', code);
+        return;
+      }
       U.applyTheme();
       if (!Store.state.settings.onboarded) { $('#boot').hidden = true; await onboarding(); }
       $('#boot').hidden = true; $('#shell').hidden = false; Pages.Nav.setTab('home');
