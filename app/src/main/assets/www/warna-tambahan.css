@@ -1,10 +1,7 @@
-/* C01N — lapisan warna TAMBAHAN (versi 2).
-   Aturan komposisi: 2 warna dominan (~90%) + 1 warna aksen (~10%).
-     Dominan 1 = krem / biru-laut gelap  (latar, --bg)
-     Dominan 2 = biru-hijau lembut       (kartu, --surface, dan turunan lebih tua untuk kartu saldo)
-     Aksen     = amber                   (tombol, tab aktif, progres)
-   Hijau/merah hanya dipakai sebagai warna status angka (masuk/keluar), bukan dekorasi.
-   Tanpa gradien. Hanya warna: tidak ada ukuran, jarak, posisi, atau struktur yang diubah.
+/* C01N — lapisan warna TAMBAHAN (versi 3).
+   Komposisi: 2 warna dominan (~90%) + 1 aksen amber (~10%).
+   Warna fungsi (bukan dekorasi): hijau = pemasukan, merah = pengeluaran, biru = transfer / kalender / tagihan.
+   Tanpa gradien. Hanya warna; tidak ada ukuran, jarak, posisi, atau struktur yang diubah.
    Muat SETELAH style.css. Untuk membatalkan: hapus satu baris <link> di index.html. */
 
 /* ---------- terang ---------- */
@@ -12,10 +9,12 @@
   --bg: #F3ECDD; --surface: #D4E3E0; --surface-2: #E4EDE9;
   --accent: #B26F12; --on-accent: #FFFFFF;
   --text: #13262E; --muted: #4A6068; --line: rgba(19,38,46,.16);
-  --ok: #1F7A52; --bad: #B5413A;
-  --hero: #21505C; --hero-text: #F7F3EA; --hero-soft: rgba(247,243,234,.14); --hero-label: rgba(247,243,234,.75);
-  --hero-ok: #A5E8C8; --hero-bad: #FFBDB3;
-  --ok-tint: rgba(31,122,82,.14); --bad-tint: rgba(181,65,58,.14);
+  --ok: #1F7A52; --bad: #C0392F;
+  --hero: #21505C; --hero-text: #F7F3EA; --hero-soft: rgba(247,243,234,.14); --hero-label: rgba(247,243,234,.78);
+  --hero-amount: #FFD36E; --hero-ok: #8FF0C2; --hero-bad: #FFA79B;
+  --in-bg: #1F7A52; --in-text: #FFFFFF; --out-bg: #C0392F; --out-text: #FFFFFF;
+  --blue: #2F6DB5; --on-blue: #FFFFFF; --blue-tint: rgba(47,109,181,.16);
+  --ok-tint: rgba(31,122,82,.16); --bad-tint: rgba(192,57,47,.16);
 }
 
 /* ---------- gelap: biru-laut, bukan hitam ---------- */
@@ -23,34 +22,67 @@
   :root:not([data-theme="light"]) {
     --bg: #1C3743; --surface: #2B5160; --surface-2: #34606F;
     --accent: #E3AD45; --on-accent: #2A1C00; --text: #F1F5F3; --muted: #B3C7CE; --line: rgba(241,245,243,.16);
-    --ok: #74D9AE; --bad: #FF9A8D;
-    --hero: #3A6E80; --hero-text: #FFFFFF; --hero-soft: rgba(255,255,255,.14); --hero-label: rgba(255,255,255,.78);
-    --hero-ok: #B2F2D3; --hero-bad: #FFC8BF;
-    --ok-tint: rgba(116,217,174,.18); --bad-tint: rgba(255,154,141,.18);
+    --ok: #62D8A4; --bad: #FF7A6B;
+    --hero: #3A6E80; --hero-text: #FFFFFF; --hero-soft: rgba(255,255,255,.14); --hero-label: rgba(255,255,255,.8);
+    --hero-amount: #FFD36E; --hero-ok: #A6F5CD; --hero-bad: #FFB5AA;
+    --in-bg: #3FBF8E; --in-text: #06281B; --out-bg: #F0655A; --out-text: #2A0805;
+    --blue: #6FA8EE; --on-blue: #0A2342; --blue-tint: rgba(111,168,238,.2);
+    --ok-tint: rgba(98,216,164,.2); --bad-tint: rgba(255,122,107,.2);
   }
 }
 :root[data-theme="dark"] {
   --bg: #1C3743; --surface: #2B5160; --surface-2: #34606F;
   --accent: #E3AD45; --on-accent: #2A1C00; --text: #F1F5F3; --muted: #B3C7CE; --line: rgba(241,245,243,.16);
-  --ok: #74D9AE; --bad: #FF9A8D;
-  --hero: #3A6E80; --hero-text: #FFFFFF; --hero-soft: rgba(255,255,255,.14); --hero-label: rgba(255,255,255,.78);
-  --hero-ok: #B2F2D3; --hero-bad: #FFC8BF;
-  --ok-tint: rgba(116,217,174,.18); --bad-tint: rgba(255,154,141,.18);
+  --ok: #62D8A4; --bad: #FF7A6B;
+  --hero: #3A6E80; --hero-text: #FFFFFF; --hero-soft: rgba(255,255,255,.14); --hero-label: rgba(255,255,255,.8);
+  --hero-amount: #FFD36E; --hero-ok: #A6F5CD; --hero-bad: #FFB5AA;
+  --in-bg: #3FBF8E; --in-text: #06281B; --out-bg: #F0655A; --out-text: #2A0805;
+  --blue: #6FA8EE; --on-blue: #0A2342; --blue-tint: rgba(111,168,238,.2);
+  --ok-tint: rgba(98,216,164,.2); --bad-tint: rgba(255,122,107,.2);
 }
 
-/* ---------- kartu saldo: warna padat (dominan 2 versi tua), tanpa gradien ---------- */
+/* ---------- kartu saldo ---------- */
 .balance { background: var(--hero); color: var(--hero-text); border-color: transparent; }
 .balance .eyebrow { color: var(--hero-label); }
-.balance .amount { color: var(--hero-text); }
+.balance .amount { color: var(--hero-amount); }
 .balance .stat { background: var(--hero-soft); }
-.balance .stat b { color: var(--hero-text); }
 .balance .stat .lbl { color: var(--hero-label); }
 .balance .stat .lbl.ok { color: var(--hero-ok); }
 .balance .stat .lbl.bad { color: var(--hero-bad); }
+.balance .stat:first-child b { color: var(--hero-ok); }
+.balance .stat:nth-child(2) b { color: var(--hero-bad); }
 
-/* ---------- ikon transaksi: status saja ---------- */
+/* ---------- pemasukan = hijau, pengeluaran = merah ---------- */
+.btn.primary[data-type="income"] { background: var(--in-bg); color: var(--in-text); }
+.btn.primary[data-type="expense"] { background: var(--out-bg); color: var(--out-text); }
+.fab[data-type="expense"] { background: var(--out-bg); color: var(--out-text); }
+.fab[data-type="income"] { background: var(--in-bg); color: var(--in-text); }
+.quick button[data-sub="income"] { background: var(--in-bg); color: var(--in-text); }
+.seg button.on[data-t="income"], .chip.on[data-v="income"] { background: var(--in-bg); color: var(--in-text); }
+.seg button.on[data-t="expense"], .chip.on[data-v="expense"] { background: var(--out-bg); color: var(--out-text); }
 .tx .ico.ok { background: var(--ok-tint); color: var(--ok); }
 .tx .ico.bad { background: var(--bad-tint); color: var(--bad); }
+.tx .a.ok, .stat .lbl.ok { color: var(--ok); }
+.tx .a.bad, .stat .lbl.bad { color: var(--bad); }
+
+/* ---------- transfer, kalender, tagihan = biru ---------- */
+.quick button[data-act="transfer"], .quick button[data-sub="calendar"], .quick button[data-sub="bills"] { background: var(--blue); color: var(--on-blue); }
+.btn[data-act="transfer"] { background: var(--blue); color: var(--on-blue); }
+.seg button.on[data-t="transfer"], .chip.on[data-v="transfer"] { background: var(--blue); color: var(--on-blue); }
+.tx .ico.muted { background: var(--blue-tint); color: var(--blue); }
+.tx .a.muted { color: var(--blue); }
+.menu-item[data-sub="calendar"] > svg.i:first-child, .menu-item[data-sub="bills"] > svg.i:first-child, .menu-item[data-act="transfer"] > svg.i:first-child { color: var(--blue); }
+
+/* ---------- grafik arus kas ---------- */
+.bar.b-in { background: var(--ok); opacity: 1; }
+.bar.b-out { background: var(--bad); opacity: 1; }
+.legend span:nth-child(1) i { background: var(--ok) !important; }
+.legend span:nth-child(2) i { background: var(--bad) !important; }
+
+/* ---------- merek: C01N dan logo koin ---------- */
+#page-home .page-head h1 .brand-l { color: var(--accent); }
+.coin { display: inline-block; width: .98em; height: .98em; vertical-align: -.13em; margin: 0 1px; }
+.logo .coin { width: 78%; height: 78%; margin: 0; vertical-align: baseline; }
 
 /* ---------- sheet, dialog, subhalaman mengikuti latar ---------- */
 .sheet, .dialog, #stack > .sub, .sub-head { background: var(--bg); }
