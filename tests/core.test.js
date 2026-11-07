@@ -271,4 +271,3 @@ test('deret batang per periode dan foto profil tervalidasi', () => {
   assert.equal(C.normalizeState({ settings: { photo: 'data:image/jpeg;base64,AAAA' } }).settings.photo, 'data:image/jpeg;base64,AAAA');
   assert.equal(C.normalizeState({ settings: { photo: 'javascript:alert(1)' } }).settings.photo, '');
 });
-                          
