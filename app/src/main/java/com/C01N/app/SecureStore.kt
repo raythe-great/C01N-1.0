@@ -6,7 +6,6 @@ import android.security.keystore.KeyProperties
 import android.util.AtomicFile
 import java.io.File
 import java.security.KeyStore
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -52,11 +51,15 @@ class SecureStore(context: Context) {
         val atomic = AtomicFile(File(dir, "$name.bin"))
         val out = atomic.startWrite()
         return try {
-            val iv = ByteArray(IV_LEN).also { SecureRandom().nextBytes(it) }
+            // Kunci Android Keystore mewajibkan IV acak buatan Keystore sendiri. Memberi IV manual
+            // ditolak ("Caller-provided IV not permitted") sehingga setiap penulisan gagal.
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.ENCRYPT_MODE, key(), GCMParameterSpec(128, iv))
+            cipher.init(Cipher.ENCRYPT_MODE, key())
+            val iv = cipher.iv
+            check(iv != null && iv.size == IV_LEN) { "IV tidak valid" }
+            val ct = cipher.doFinal(text.toByteArray(Charsets.UTF_8))
             out.write(iv)
-            out.write(cipher.doFinal(text.toByteArray(Charsets.UTF_8)))
+            out.write(ct)
             atomic.finishWrite(out)
             true
         } catch (_: Exception) {
