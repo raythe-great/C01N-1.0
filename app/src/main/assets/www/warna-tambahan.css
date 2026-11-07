@@ -1,0 +1,61 @@
+/* C01N — lapisan warna TAMBAHAN (versi 2).
+   Aturan komposisi: 2 warna dominan (~90%) + 1 warna aksen (~10%).
+     Dominan 1 = krem / biru-laut gelap  (latar, --bg)
+     Dominan 2 = biru-hijau lembut       (kartu, --surface, dan turunan lebih tua untuk kartu saldo)
+     Aksen     = amber                   (tombol, tab aktif, progres)
+   Hijau/merah hanya dipakai sebagai warna status angka (masuk/keluar), bukan dekorasi.
+   Tanpa gradien. Hanya warna: tidak ada ukuran, jarak, posisi, atau struktur yang diubah.
+   Muat SETELAH style.css. Untuk membatalkan: hapus satu baris <link> di index.html. */
+
+/* ---------- terang ---------- */
+:root {
+  --bg: #F3ECDD; --surface: #D4E3E0; --surface-2: #E4EDE9;
+  --accent: #B26F12; --on-accent: #FFFFFF;
+  --text: #13262E; --muted: #4A6068; --line: rgba(19,38,46,.16);
+  --ok: #1F7A52; --bad: #B5413A;
+  --hero: #21505C; --hero-text: #F7F3EA; --hero-soft: rgba(247,243,234,.14); --hero-label: rgba(247,243,234,.75);
+  --hero-ok: #A5E8C8; --hero-bad: #FFBDB3;
+  --ok-tint: rgba(31,122,82,.14); --bad-tint: rgba(181,65,58,.14);
+}
+
+/* ---------- gelap: biru-laut, bukan hitam ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1C3743; --surface: #2B5160; --surface-2: #34606F;
+    --accent: #E3AD45; --on-accent: #2A1C00; --text: #F1F5F3; --muted: #B3C7CE; --line: rgba(241,245,243,.16);
+    --ok: #74D9AE; --bad: #FF9A8D;
+    --hero: #3A6E80; --hero-text: #FFFFFF; --hero-soft: rgba(255,255,255,.14); --hero-label: rgba(255,255,255,.78);
+    --hero-ok: #B2F2D3; --hero-bad: #FFC8BF;
+    --ok-tint: rgba(116,217,174,.18); --bad-tint: rgba(255,154,141,.18);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1C3743; --surface: #2B5160; --surface-2: #34606F;
+  --accent: #E3AD45; --on-accent: #2A1C00; --text: #F1F5F3; --muted: #B3C7CE; --line: rgba(241,245,243,.16);
+  --ok: #74D9AE; --bad: #FF9A8D;
+  --hero: #3A6E80; --hero-text: #FFFFFF; --hero-soft: rgba(255,255,255,.14); --hero-label: rgba(255,255,255,.78);
+  --hero-ok: #B2F2D3; --hero-bad: #FFC8BF;
+  --ok-tint: rgba(116,217,174,.18); --bad-tint: rgba(255,154,141,.18);
+}
+
+/* ---------- kartu saldo: warna padat (dominan 2 versi tua), tanpa gradien ---------- */
+.balance { background: var(--hero); color: var(--hero-text); border-color: transparent; }
+.balance .eyebrow { color: var(--hero-label); }
+.balance .amount { color: var(--hero-text); }
+.balance .stat { background: var(--hero-soft); }
+.balance .stat b { color: var(--hero-text); }
+.balance .stat .lbl { color: var(--hero-label); }
+.balance .stat .lbl.ok { color: var(--hero-ok); }
+.balance .stat .lbl.bad { color: var(--hero-bad); }
+
+/* ---------- ikon transaksi: status saja ---------- */
+.tx .ico.ok { background: var(--ok-tint); color: var(--ok); }
+.tx .ico.bad { background: var(--bad-tint); color: var(--bad); }
+
+/* ---------- sheet, dialog, subhalaman mengikuti latar ---------- */
+.sheet, .dialog, #stack > .sub, .sub-head { background: var(--bg); }
+
+/* ---------- cetak tidak terpengaruh ---------- */
+@media print {
+  .balance { background: #fff !important; }
+}
